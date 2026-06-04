@@ -1,93 +1,88 @@
-from typing import Dict, List, Tuple, Optional, Set
+"""Implementação simples do algoritmo de Floyd-Warshall.
 
-# Criação de um "Type Alias" para facilitar a leitura da tipagem do grafo
-GrafoType = Dict[str, List[Tuple[str, int]]]
+Objetivo: encontrar o menor caminho entre TODOS os pares de vértices.
 
+Paradigma: Programação Dinâmica.
+Complexidade de tempo: Theta(|V|^3) — três laços aninhados sobre
+todos os vértices, sem saída antecipada.
+Complexidade de espaço: Theta(|V|^2) — uma matriz N x N.
+"""
 
-def calcular_rota_fibra(grafo: GrafoType, vertice_inicial: str) -> Tuple[List[Tuple[str, str, int]], int]:
-    """
-    Calcula a Árvore Geradora Mínima (MST) de um grafo ponderado e não
-    direcionado utilizando o Algoritmo de Prim.
+import math
+
+def floyd_warshall(n, dist):
+    """Calcula o caminho mínimo entre todos os pares de vértices.
+
+    Aplica a recorrência:
+        dist[i][j] = min(dist[i][j], dist[i][k] + dist[k][j])
+    para cada vértice intermediário k, liberando um vértice por fase.
 
     Args:
-        grafo: Dicionário representando o grafo em formato de Lista de Adjacência.
-        vertice_inicial: O nó de partida para a construção da árvore.
+        n (int): número de vértices do grafo.
+        dist (list[list[float]]): matriz de adjacência N x N com os
+            pesos das arestas; use math.inf onde não há aresta direta
+            e 0 na diagonal principal.
 
     Returns:
-        Uma tupla contendo:
-        - A lista das arestas que compõem a MST no formato (origem, destino, peso).
-        - O custo total (inteiro) da rota.
+        list[list[float]] | None: matriz de distâncias mínimas entre
+            todos os pares, ou None se houver ciclo negativo.
     """
-    menor_peso: Dict[str, float] = {}
-    predecessor: Dict[str, Optional[str]] = {}
+    for k in range(n):
+        for i in range(n):
+            for j in range(n):
+                if dist[i][k] + dist[k][j] < dist[i][j]:
+                    dist[i][j] = dist[i][k] + dist[k][j]
 
-    # Inicialização dos vértices
-    for v in grafo:
-        menor_peso[v] = float('inf')
-        predecessor[v] = None
+    for i in range(n):
+        if dist[i][i] < 0:
+            print("Ciclo negativo detectado — resultado inválido.")
+            return None
 
-    menor_peso[vertice_inicial] = 0
-    nao_visitados: Set[str] = set(grafo.keys())
-
-    mst: List[Tuple[str, str, int]] = []
-    custo_total = 0
-
-    while nao_visitados:
-        u: Optional[str] = None
-        menor_valor = float('inf')
-
-        # Busca manual do vértice com o menor peso disponível
-        for vertice in nao_visitados:
-            if menor_peso[vertice] < menor_valor:
-                menor_valor = menor_peso[vertice]
-                u = vertice
-
-        # Se u continuar None, o grafo é desconexo; podemos abortar
-        if u is None:
-            break
-
-        nao_visitados.remove(u)
-
-        # Adiciona a aresta à Árvore Geradora Mínima
-        if predecessor[u] is not None:
-            # O type ignore/cast indireto aqui garante que o predecessor é string, não None
-            mst.append((predecessor[u], u, int(menor_peso[u])))  # type: ignore
-            custo_total += int(menor_peso[u])
-
-        # Atualiza os pesos dos vértices adjacentes
-        for v, peso in grafo[u]:
-            if v in nao_visitados and peso < menor_peso[v]:
-                predecessor[v] = u
-                menor_peso[v] = peso
-
-    return mst, custo_total
+    return dist
 
 
-def main() -> None:
-    """Função principal para instanciar dados e executar o algoritmo."""
-    # Representação do grafo (Lista de Adjacência)
-    polos_tecnologicos: GrafoType = {
-        'A': [('B', 4), ('C', 4)],
-        'B': [('A', 4), ('C', 2), ('D', 5)],
-        'C': [('A', 4), ('B', 2), ('D', 5), ('E', 6)],
-        'D': [('B', 5), ('C', 5), ('E', 3), ('F', 4)],
-        'E': [('C', 6), ('D', 3), ('F', 2)],
-        'F': [('D', 4), ('E', 2)]
-    }
+def print_matrix(dist, labels):
+    """Exibe a matriz de distâncias formatada com rótulos de vértices.
 
-    rota_instalacao, km_totais = calcular_rota_fibra(polos_tecnologicos, 'A')
+    Args:
+        dist (list[list[float]]): matriz de distâncias mínimas.
+        labels (list[str]): rótulos dos vértices (ex.: ['A','B','C','D']).
+    """
+    header = f"{'':>6}" + "".join(f"{label:>8}" for label in labels)
+    print(header)
+    print("-" * (6 + 8 * len(labels)))
+    for i, row in enumerate(dist):
+        values = ""
+        for val in row:
+            values += f"{'INF':>8}" if val == math.inf else f"{val:>8.0f}"
+        print(f"{labels[i]:>6} {values}")
 
-    # Saída de dados formatada
-    print("ROTA DOS CABOS A SEREM INSTALADOS (em ordem):")
-    print("-" * 55)
 
-    for origem, destino, km in rota_instalacao:
-        print(f"Conectar Polo {origem} ao Polo {destino} -> "
-              f"Utilizando {km} Km de fibra")
+def main():
+    """Executa o Floyd-Warshall no grafo de exemplo do slide."""
+    INF = math.inf
 
-    print("-" * 55)
-    print(f"Quantidade total mínima de quilômetros "
-          f"de cabos utilizados: {km_totais} Km")
+    # Grafo do slide: vértices A, B, C, D
+    # Arestas: A->B=2, A->D=3, B->A=3, B->C=2, C->D=4, D->A=-2, D->B=6
+    labels = ["A", "B", "C", "D"]
+    n = len(labels)
+
+    dist_matrix = [
+        [0, 2, INF, 3],
+        [3, 0, 2, INF],
+        [INF, INF, 0, 4],
+        [-2, 6, INF, 0],
+    ]
+
+    print("=== Floyd-Warshall — Implementação Simples ===\n")
+    print("Matriz inicial (arestas diretas):")
+    print_matrix(dist_matrix, labels)
+
+    result = floyd_warshall(n, dist_matrix)
+
+    if result is not None:
+        print("\nMatriz final (menores distâncias entre todos os pares):")
+        print_matrix(result, labels)
 
 
 if __name__ == "__main__":
